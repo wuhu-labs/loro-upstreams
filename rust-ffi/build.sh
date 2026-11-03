@@ -34,8 +34,17 @@ WORK="$(mktemp -d)"
 
 sha256() { if command -v sha256sum >/dev/null; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
 fetch() { curl -sSfL -o "$2" "$1"; echo "$3  $2" | sha256 -c -; }
-# Global defined text symbols of the C API surfaces, without Mach-O's leading underscore.
-api_symbols() { nm -g "$@" 2>/dev/null | awk '$2 == "T" { sub(/^_/, "", $3); print $3 }' | grep -E '^(wasm|wasi|uniffi_|ffi_loro)' | sort -u; }
+# Apple's nm cannot parse the compiler_builtins bitcode in Rust staticlibs and
+# exits 1 after listing every other member.
+symbols() { nm -g "$1" 2>/dev/null || true; }
+# Global defined text symbols of the C API surfaces, without Mach-O's leading
+# underscore; grep fails the build on a library that yields none.
+api_symbols() {
+  local lib
+  for lib in "$@"; do
+    symbols "$lib" | awk '$2 == "T" { sub(/^_/, "", $3); print $3 }' | grep -E '^(wasm|wasi|uniffi_|ffi_loro)'
+  done | sort -u
+}
 
 if ! command -v rustup >/dev/null; then
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain "$RUST" --no-modify-path
@@ -94,7 +103,7 @@ api_symbols "$UP/lib/libwasmtime.a" "$LORO_LIB" > expected.syms
 api_symbols "$DIST/lib/libwuhu_rust_ffi.a" > actual.syms
 comm -23 expected.syms actual.syms > missing.syms
 test ! -s missing.syms
-test "$(nm -g "$DIST/lib/libwuhu_rust_ffi.a" 2>/dev/null | grep -c ' T _\{0,1\}rust_eh_personality$')" -eq 1
+test "$(symbols "$DIST/lib/libwuhu_rust_ffi.a" | grep -c ' T _\{0,1\}rust_eh_personality$')" -eq 1
 
 cp "$SRC/PROVENANCE.md" "$DIST/PROVENANCE.md"
 {
