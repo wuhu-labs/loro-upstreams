@@ -37,10 +37,11 @@ wasmtime-c-api-impl = { version = "=50.0.1", features = [
   "pulley",
 ] }
 
-# Upstream's release profile (ci/build-release-artifacts.sh) except panic:
-# uniffi turns a Loro panic into a Swift error by catching the unwind.
+# Upstream's release profile (ci/build-release-artifacts.sh) without fat LTO,
+# which would fuse every crate into one archive member: a binary calling only
+# Loro would then carry all of Wasmtime unless its linker drops dead sections.
+# Panic stays unwind: uniffi turns a Loro panic into a Swift error.
 [profile.release]
-lto = true
 strip = "debuginfo"
 
 [profile.release.build-override]
