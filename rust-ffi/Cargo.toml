@@ -1,0 +1,50 @@
+[package]
+name = "wuhu-rust-ffi"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+loro-ffi = "=1.17.1"
+uniffi = "=0.31.1"
+# Upstream's C API release features (cmake/features.cmake defaults): all but
+# disable-logging and all-arch.
+wasmtime-c-api-impl = { version = "=50.0.1", features = [
+  "profiling",
+  "wat",
+  "cache",
+  "parallel-compilation",
+  "wasi",
+  "wasi-http",
+  "logging",
+  "coredump",
+  "addr2line",
+  "demangle",
+  "threads",
+  "gc",
+  "gc-drc",
+  "gc-null",
+  "async",
+  "cranelift",
+  "winch",
+  "debug-builtins",
+  "pooling-allocator",
+  "component-model",
+  "component-model-async",
+  "pulley",
+] }
+
+# Upstream's release profile (ci/build-release-artifacts.sh) except panic:
+# uniffi turns a Loro panic into a Swift error by catching the unwind.
+[profile.release]
+lto = true
+strip = "debuginfo"
+
+[profile.release.build-override]
+opt-level = 0
+
+[workspace]
+members = [".", "uniffi-bindgen"]
